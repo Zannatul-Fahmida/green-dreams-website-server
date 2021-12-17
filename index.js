@@ -20,6 +20,8 @@ async function run() {
         const database = client.db('greenDreams');
         const plantsCollection = database.collection('plants');
         const orderCollection = database.collection("order");
+        const reviewsCollection = database.collection('reviews');
+        const usersCollection = database.collection('users');
 
         // GET API
         app.get('/plants', async (req, res) => {
@@ -44,7 +46,7 @@ async function run() {
         });
 
         // GET Order API
-        app.get('/order', async (req, res) => {
+        app.get('/orders', async (req, res) => {
             const cursor = orderCollection.find({});
             const orders = await cursor.toArray();
             res.json(orders);
@@ -72,28 +74,94 @@ async function run() {
             res.json(ordered);
         })
 
-        //Update Status
+        //Update Status to shipped
         app.put('/order/:id', async (req, res) => {
             const id = req.params.id;
-            const updatedOrder = req.body;
             const filter = { _id: ObjectId(id) };
             const options = { upsert: true };
             const updateDoc = {
                 $set: {
-                    status: 'shipped'
+                    status: 'Shipped'
                 },
             };
-            const result = await orderCollection.updateOne(filter, updateDoc, options);
+            const result = await ordersCollection.updateOne(filter, updateDoc, options);
+            res.json(result);
+        })
+        // GET Reviews API
+        app.get('/reviews', async (req, res) => {
+            const cursor = reviewsCollection.find({});
+            const reviews = await cursor.toArray();
+            res.json(reviews);
+        });
+
+        //add reviews in database
+        app.post("/addReviews", (req, res) => {
+            reviewsCollection.insertOne(req.body).then((result) => {
+                res.json(result);
+            });
+        });
+
+        // GET Users API
+        app.get('/users', async (req, res) => {
+            const cursor = usersCollection.find({});
+            const users = await cursor.toArray();
+            res.json(users);
+        });
+
+        //get users by email
+        app.get('/users/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email: email };
+            const user = await usersCollection.findOne(query);
+            let isAdmin = false;
+            if (user.role === 'admin') {
+                isAdmin = true;
+            }
+            res.json({ admin: isAdmin });
+        })
+
+        //add users in database
+        app.post('/users', async (req, res) => {
+            const user = req.body;
+            const result = await usersCollection.insertOne(user);
             res.json(result);
         })
 
-        // DELETE Order
+        //update users
+        app.put('/users', async (req, res) => {
+            const user = req.body;
+            const filter = { email: user.email };
+            const options = { upsert: true };
+            const updateDoc = { $set: user };
+            const result = await usersCollection.updateOne(filter, updateDoc, options);
+            res.json(result);
+        })
+
+        //update users to admin
+        app.put('/users/admin', async (req, res) => {
+            const user = req.body;
+            const filter = { email: user.email };
+            const updateDoc = { $set: { role: 'admin' } };
+            const result = await usersCollection.updateOne(filter, updateDoc);
+            res.json(result);
+        })
+
+        // DELETE orders
         app.delete('/order/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
             const result = await orderCollection.deleteOne(query);
             res.json(result);
         });
+
+        // DELETE plants
+        app.delete('/plants/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await plantsCollection.deleteOne(query);
+            res.json(result);
+        });
+
 
     }
     finally {
